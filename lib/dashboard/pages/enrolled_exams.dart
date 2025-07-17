@@ -10,7 +10,6 @@ class EnrolledExamsScreen extends StatelessWidget {
   EnrolledExamsScreen({super.key, required this.dataFetcher});
 
   final Future<List<EnrolledExam>> Function() dataFetcher;
-  final _scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
@@ -33,23 +32,52 @@ class EnrolledExamsScreen extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No enrolled exams found.'));
+            return const Center(
+              child: Text('No past or future enrolled exams'),
+            );
           }
 
-          final exams = snapshot.data;
+          final exams = snapshot.data!;
+          final now = DateTime.now();
+          final upcomingExams = exams.where((e) => e.date.isAfter(now)).toList();
+          final pastExams = exams.where((e) => e.date.isBefore(now)).toList();
+
+          if (upcomingExams.isEmpty && pastExams.isEmpty) {
+            return const Center(
+              child: Text('No past or future enrolled exams'),
+            );
+          }
 
           return Scrollbar(
-            controller: _scrollController,
-            thumbVisibility: true,
-            child: ListView.builder(
-              controller: _scrollController,
+            child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: exams!.length,
-              itemBuilder: (context, i) {
-                final exam = exams[i];
-
-                return _buildSubjectCard(context, exam);
-              },
+              children: [
+                if (upcomingExams.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
+                    child: Text(
+                      'Upcoming Exams',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ...upcomingExams.map((exam) => _buildSubjectCard(context, exam)),
+                  const SizedBox(height: 24),
+                ],
+                if (pastExams.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
+                    child: Text(
+                      'Past Exams',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ...pastExams.map((exam) => _buildSubjectCard(context, exam)),
+                ],
+              ],
             ),
           );
         },

@@ -19,6 +19,8 @@ class Dashboard extends StatefulWidget {
   State<Dashboard> createState() => _DashboardState();
 }
 
+const double _kSmallWidthThreshold = 500;
+
 class _DashboardState extends State<Dashboard> {
   String? _registrationNumber;
   final ScrollController _scrollController = ScrollController();
@@ -72,13 +74,28 @@ class _DashboardState extends State<Dashboard> {
                   return const Center(child: Text('No careers found.'));
                 }
 
+                // Set default registrationNumber to the latest registrationDate
+                // if not already set
+                if (_registrationNumber == null && careers.isNotEmpty) {
+                  careers.sort((a, b) {
+                    final aDate = a.registrationDate;
+                    final bDate = b.registrationDate;
+                    if (aDate == null && bDate == null) return 0;
+                    if (aDate == null) return 1;
+                    if (bDate == null) return -1;
+                    return bDate.compareTo(aDate);
+                  });
+                  _registrationNumber = careers.first.registrationNumber;
+                }
+
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    _buildProfileButton(context),
+                    const SizedBox(height: 16),
                     _buildCareerDropdown(context, careers),
-                    const SizedBox(height: 24),
-                    _buildProfileInfo(context),
+
                     if (_registrationNumber != null &&
                         _registrationNumber!.isNotEmpty) ...[
                       const SizedBox(height: 24),
@@ -109,83 +126,115 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildCareerDropdown(BuildContext context, List<Career> careers) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-          width: 2,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: DropdownButtonFormField<String>(
-          decoration: const InputDecoration(
-            labelText: 'Select Career',
-            border: InputBorder.none, // Remove the inner border
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          ),
-          isExpanded: true,
-          items: careers
-              .map<DropdownMenuItem<String>>(
-                (career) => DropdownMenuItem<String>(
-                  value: career.registrationNumber,
-                  child: Text(
-                    '${career.description} (${career.type} - ${career.id}) [${career.status}]',
-                    overflow: TextOverflow.ellipsis,
-                  ),
+  Widget _buildProfileButton(BuildContext context) {
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold);
+
+    final borderSide = BorderSide(
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+      width: 2,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < _kSmallWidthThreshold;
+
+        final maxWidth = isSmall ? double.infinity : 200.0;
+
+        final padding = isSmall
+            ? const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4)
+            : const EdgeInsets.symmetric(vertical: 2.0);
+
+        final buttonPadding = isSmall
+            ? const EdgeInsets.symmetric(vertical: 18)
+            : const EdgeInsets.symmetric(vertical: 18, horizontal: 32);
+
+        final button = SizedBox(
+          width: maxWidth,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.account_circle),
+            label: const Text('Me'),
+            style: OutlinedButton.styleFrom(
+              padding: buttonPadding,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: textStyle,
+              side: borderSide,
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) =>
+                      MeWidget(dataFetcher: () => widget.uniboApi.getMe()),
                 ),
-              )
-              .toList(),
-          onChanged: (value) {
-            setState(() {
-              _registrationNumber = value;
-            });
-          },
-          value: _registrationNumber,
-        ),
-      ),
+              );
+            },
+          ),
+        );
+
+        if (isSmall) {
+          return Padding(padding: padding, child: button);
+        } else {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [button],
+          );
+        }
+      },
     );
   }
 
-  Widget _buildProfileInfo(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          "Profile Information",
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: Colors.blueGrey[700],
-            fontWeight: FontWeight.bold,
-          ),
+  Widget _buildCareerDropdown(BuildContext context, List<Career> careers) {
+    var dropdownItems = careers.map<DropdownMenuItem<String>>(
+      (career) => DropdownMenuItem<String>(
+        value: career.registrationNumber,
+        child: Text(
+          '${career.description} (${career.type} - ${career.id}) [${career.status}]',
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _DashboardSquareButton(
-                icon: Icons.account_circle,
-                label: 'Me',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          MeWidget(dataFetcher: () => widget.uniboApi.getMe()),
-                    ),
-                  );
-                },
+      ),
+    );
+
+    var selectedRegNumber = _registrationNumber;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth < _kSmallWidthThreshold
+            ? double.infinity
+            : 600.0;
+
+        return SizedBox(
+          width: maxWidth,
+          child: DropdownButtonFormField<String>(
+            value: selectedRegNumber,
+            items: dropdownItems.toList(),
+            isExpanded: true,
+            isDense: false,
+            onChanged: (value) {
+              setState(() {
+                _registrationNumber = value;
+              });
+            },
+            decoration: InputDecoration(
+              labelText: 'Select Career',
+              border: OutlineInputBorder(
+                borderSide: BorderSide(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.5),
+                  width: 2,
+                ),
               ),
-            ],
+              contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
+
+  // _buildProfileInfo removed
 
   Widget _buildCareerTitle(BuildContext context, List<Career> careers) {
     final career = careers.firstWhere(
@@ -201,58 +250,81 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget _buildDashboardButtons(BuildContext context, List<Career> careers) {
+    final buttons = [
+      _DashboardSquareButton(
+        icon: Icons.table_chart,
+        label: 'Study Plan',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => StudyPlanTable(
+                dataFetcher: () =>
+                    widget.uniboApi.getStudyPlans(_registrationNumber!),
+              ),
+            ),
+          );
+        },
+      ),
+      _DashboardSquareButton(
+        icon: Icons.bar_chart,
+        label: 'Stats',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => StatsWidget(
+                dataFetcher: () =>
+                    widget.uniboApi.getStats(_registrationNumber!),
+                studyPlanFetcher: () =>
+                    widget.uniboApi.getStudyPlans(_registrationNumber!),
+              ),
+            ),
+          );
+        },
+      ),
+      _DashboardSquareButton(
+        icon: Icons.assignment,
+        label: 'Enrolled Exams',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => EnrolledExamsScreen(
+                dataFetcher: () =>
+                    widget.uniboApi.getEnrolledExams(_registrationNumber!),
+              ),
+            ),
+          );
+        },
+      ),
+    ];
+
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          _DashboardSquareButton(
-            icon: Icons.table_chart,
-            label: 'Study Plan',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => StudyPlanTable(
-                    dataFetcher: () =>
-                        widget.uniboApi.getStudyPlans(_registrationNumber!),
-                  ),
-                ),
-              );
-            },
-          ),
-          _DashboardSquareButton(
-            icon: Icons.bar_chart,
-            label: 'Stats',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => StatsWidget(
-                    dataFetcher: () =>
-                        widget.uniboApi.getStats(_registrationNumber!),
-                    studyPlanFetcher: () =>
-                        widget.uniboApi.getStudyPlans(_registrationNumber!),
-                  ),
-                ),
-              );
-            },
-          ),
-          _DashboardSquareButton(
-            icon: Icons.assignment,
-            label: 'Enrolled Exams',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => EnrolledExamsScreen(
-                    dataFetcher: () =>
-                        widget.uniboApi.getEnrolledExams(_registrationNumber!),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < _kSmallWidthThreshold) {
+            // Small width: show as a vertical list with reduced margin
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: buttons
+                  .map(
+                    (btn) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2.0),
+                      child: btn,
+                    ),
+                  )
+                  .toList(),
+            );
+          } else {
+            // Large width: show as a grid (Wrap)
+            return Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
+              children: buttons,
+            );
+          }
+        },
       ),
     );
   }
@@ -271,24 +343,23 @@ class _DashboardSquareButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.15),
-              width: 2,
-            ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        width: 120,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.15),
+            width: 2,
           ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -300,6 +371,7 @@ class _DashboardSquareButton extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 label,
+
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:almastudio/unibo_api.dart';
 
@@ -22,11 +23,12 @@ class _StudyPlanTableState extends State<StudyPlanTable> {
       appBar: AppBar(
         title: const Text('Study Plan'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: () => setState(() {}),
-          ),
+          if (kIsWeb || !(defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS))
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: () => setState(() {}),
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -253,74 +255,67 @@ class _StudyPlanTableState extends State<StudyPlanTable> {
               ),
             ],
             const SizedBox(height: 12),
-            if (isRecorded)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
+                  if (isRecorded)
+                    Chip(
+                      avatar: Icon(Icons.calendar_today, size: 18, color: Colors.blueGrey[700]),
+                      label: Text(DateFormat('d MMM yyyy').format(activity.recordDate!)),
+                      backgroundColor: Colors.blueGrey[50],
+                      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(6),
+                  Chip(
+                    avatar: Icon(Icons.tag, size: 18, color: Colors.blueGrey[700]),
+                    label: Text('Code: ${activity.code}'),
+                    backgroundColor: Colors.blueGrey[50],
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                  ),
+                  Chip(
+                    avatar: Icon(Icons.calendar_view_week, size: 18, color: Colors.blueGrey[700]),
+                    label: Text('Year: ${activity.programmeYear}'),
+                    backgroundColor: Colors.blueGrey[50],
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                  ),
+                  Chip(
+                    avatar: Icon(Icons.star, size: 18, color: Colors.amber[800]),
+                    label: Text('Credits: ${activity.credits}'),
+                    backgroundColor: Colors.blueGrey[50],
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                  ),
+                  Chip(
+                    avatar: Icon(
+                      (activity.useful ?? false) ? Icons.check : Icons.close,
+                      size: 18,
+                      color: (activity.useful ?? false) ? Colors.green[700] : Colors.red[400],
                     ),
-                    child: Text(
-                      DateFormat.yMMMMEEEEd().format(activity.recordDate!),
-                      style: TextStyle(
-                        color: Colors.green[800],
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                      ),
-                    ),
+                    label: Text('Useful: ${(activity.useful ?? false) ? 'Yes' : 'No'}'),
+                    backgroundColor: Colors.blueGrey[50],
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                   ),
                 ],
               ),
-            _InfoRow(label: 'Code', value: activity.code),
-            _InfoRow(label: 'Year', value: activity.programmeYear.toString()),
-            _InfoRow(label: 'Credits', value: activity.credits.toString()),
-            _InfoRow(
-              label: 'Useful',
-              value: activity.useful ?? false ? 'Yes' : 'No',
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w400),
-            ),
-          ),
-        ],
       ),
     );
   }
